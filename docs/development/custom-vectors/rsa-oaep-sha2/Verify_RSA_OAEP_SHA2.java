@@ -35,6 +35,7 @@ class TestVectorData {
 }
 
 class TestVectorLoader {
+    private static final String FILE_HEADER = "# RSA OAEP SHA2 vectors built";
 	private static final String EXAMPLE_HEADER = "# =====";
 	private static final String EXAMPLE = "# Example";
 	private static final String PUBLIC_KEY = "# Public key";
@@ -99,6 +100,12 @@ class TestVectorLoader {
 			return null;
 		}
 
+        if (line.startsWith(FILE_HEADER)) {
+            // start of file
+            skipFileHeader(m_reader);
+    		line = m_reader.readLine();
+        }
+
 		if (line.startsWith(OAEP_EXAMPLE_HEADER)) {
 			// Next example, keep existing keys and load next message
 			loadMessage(m_reader, m_data);
@@ -137,6 +144,12 @@ class TestVectorLoader {
 	private BigInteger readBigInteger(BufferedReader br) throws IOException {
 		return new BigInteger(br.readLine(), 16);
 	}
+
+    private void skipFileHeader(BufferedReader br) throws IOException {
+        br.readLine(); // # # Derived from the NIST OAEP SHA1 vectors
+        br.readLine(); // # # Verified against the Bouncy Castle OAEP SHA2 implementation
+        br.readLine(); // #
+    }
 
 	private void startNewTest(BufferedReader br) throws IOException {
 		String line = br.readLine();
