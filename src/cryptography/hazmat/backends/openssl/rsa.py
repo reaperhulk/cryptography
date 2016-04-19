@@ -49,9 +49,12 @@ def _enc_dec_rsa(backend, key, data, padding):
                 _Reasons.UNSUPPORTED_MGF
             )
 
-        if not isinstance(padding._mgf._algorithm, hashes.SHA1):
+        if (
+            not isinstance(padding._mgf._algorithm, hashes.SHA1) and
+            backend._lib.OpenSSL_version_num() < 0x10002001
+        ):
             raise UnsupportedAlgorithm(
-                "This backend supports only SHA1 inside MGF1 when "
+                "OpenSSL < 1.0.2 only supports SHA1 inside MGF1 when "
                 "using OAEP.",
                 _Reasons.UNSUPPORTED_HASH
             )
@@ -59,9 +62,12 @@ def _enc_dec_rsa(backend, key, data, padding):
         if padding._label is not None and padding._label != b"":
             raise ValueError("This backend does not support OAEP labels.")
 
-        if not isinstance(padding._algorithm, hashes.SHA1):
+        if (
+            not isinstance(padding._algorithm, hashes.SHA1) and
+            backend._lib.OpenSSL_version_num() < 0x10002001
+        ):
             raise UnsupportedAlgorithm(
-                "This backend only supports SHA1 when using OAEP.",
+                "OpenSSL < 1.0.2 only supports SHA1 when using OAEP.",
                 _Reasons.UNSUPPORTED_HASH
             )
     else:
@@ -73,12 +79,12 @@ def _enc_dec_rsa(backend, key, data, padding):
         )
 
     if backend._lib.Cryptography_HAS_PKEY_CTX:
-        return _enc_dec_rsa_pkey_ctx(backend, key, data, padding_enum)
+        return _enc_dec_rsa_pkey_ctx(backend, key, data, padding_enum, padding)
     else:
         return _enc_dec_rsa_098(backend, key, data, padding_enum)
 
 
-def _enc_dec_rsa_pkey_ctx(backend, key, data, padding_enum):
+def _enc_dec_rsa_pkey_ctx(backend, key, data, padding_enum, padding):
     if isinstance(key, _RSAPublicKey):
         init = backend._lib.EVP_PKEY_encrypt_init
         crypt = backend._lib.Cryptography_EVP_PKEY_encrypt
@@ -98,6 +104,21 @@ def _enc_dec_rsa_pkey_ctx(backend, key, data, padding_enum):
     backend.openssl_assert(res > 0)
     buf_size = backend._lib.EVP_PKEY_size(key._evp_pkey)
     backend.openssl_assert(buf_size > 0)
+    if (
+        isinstance(padding, OAEP) and
+        backend._lib.OpenSSL_version_num() >= 0x10002001
+    ):
+        mgf1_md = backend._lib.EVP_get_digestbyname(
+            padding._mgf._algorithm.name.encode("ascii"))
+        backend.openssl_assert(mgf1_md != backend._ffi.NULL)
+        res = backend._lib.EVP_PKEY_CTX_set_rsa_mgf1_md(pkey_ctx, mgf1_md)
+        backend.openssl_assert(res > 0)
+        oaep_md = backend._lib.EVP_get_digestbyname(
+            padding._algorithm.name.encode("ascii"))
+        backend.openssl_assert(oaep_md != backend._ffi.NULL)
+        res = backend._lib.EVP_PKEY_CTX_set_rsa_oaep_md(pkey_ctx, oaep_md)
+        backend.openssl_assert(res > 0)
+
     outlen = backend._ffi.new("size_t *", buf_size)
     buf = backend._ffi.new("char[]", buf_size)
     res = crypt(pkey_ctx, buf, outlen, data, len(data))

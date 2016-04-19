@@ -590,7 +590,13 @@ class Backend(object):
         elif isinstance(padding, PSS) and isinstance(padding._mgf, MGF1):
             return self._mgf1_hash_supported(padding._mgf._algorithm)
         elif isinstance(padding, OAEP) and isinstance(padding._mgf, MGF1):
-            return isinstance(padding._mgf._algorithm, hashes.SHA1)
+            if self._lib.OpenSSL_version_num() >= 0x10002001:
+                return (
+                    self._mgf1_hash_supported(padding._mgf._algorithm) and
+                    self.hash_supported(padding._algorithm)
+                )
+            else:
+                return isinstance(padding._mgf._algorithm, hashes.SHA1)
         else:
             return False
 

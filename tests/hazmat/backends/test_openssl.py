@@ -395,6 +395,10 @@ class TestOpenSSLRSA(object):
             padding.PSS(mgf=DummyMGF(), salt_length=0)
         ) is False
 
+    @pytest.mark.skipif(
+        backend._lib.OPENSSL_VERSION_NUMBER >= 0x10002001,
+        reason="Requires an older OpenSSL. Must be < 1.0.2"
+    )
     def test_unsupported_mgf1_hash_algorithm_decrypt(self):
         private_key = RSA_KEY_512.private_key(backend)
         with raises_unsupported_algorithm(_Reasons.UNSUPPORTED_HASH):
@@ -407,6 +411,10 @@ class TestOpenSSLRSA(object):
                 )
             )
 
+    @pytest.mark.skipif(
+        backend._lib.OPENSSL_VERSION_NUMBER >= 0x10002001,
+        reason="Requires an older OpenSSL. Must be < 1.0.2"
+    )
     def test_unsupported_oaep_hash_algorithm_decrypt(self):
         private_key = RSA_KEY_512.private_key(backend)
         with raises_unsupported_algorithm(_Reasons.UNSUPPORTED_HASH):
