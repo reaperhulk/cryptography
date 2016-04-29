@@ -403,6 +403,38 @@ class TestOpenSSLRSA(object):
                 ),
             ) is True
 
+    def test_rsa_padding_unsupported_oaep_combo_sha1_sha2(self):
+        hashalgs = (
+            hashes.SHA224(),
+            hashes.SHA256(),
+            hashes.SHA384(),
+            hashes.SHA512()
+        )
+        for hash_alg in hashalgs:
+            assert backend.rsa_padding_supported(
+                padding.OAEP(
+                    mgf=padding.MGF1(algorithm=hashes.SHA1()),
+                    algorithm=hash_alg,
+                    label=None
+                ),
+            ) is False
+
+    def test_rsa_padding_unsupported_oaep_combo_sha2_sha1(self):
+        hashalgs = (
+            hashes.SHA224(),
+            hashes.SHA256(),
+            hashes.SHA384(),
+            hashes.SHA512()
+        )
+        for hash_alg in hashalgs:
+            assert backend.rsa_padding_supported(
+                padding.OAEP(
+                    mgf=padding.MGF1(algorithm=hash_alg),
+                    algorithm=hashes.SHA1(),
+                    label=None
+                ),
+            ) is False
+
     def test_rsa_padding_unsupported_oaep_ripemd160_sha1(self):
         assert backend.rsa_padding_supported(
             padding.OAEP(
