@@ -42,15 +42,37 @@ def _enc_dec_rsa(backend, key, data, padding):
     if isinstance(padding, PKCS1v15):
         padding_enum = backend._lib.RSA_PKCS1_PADDING
     elif isinstance(padding, OAEP):
+        padding_enum = backend._lib.RSA_PKCS1_OAEP_PADDING
+
+        if not isinstance(padding._mgf, MGF1):
+            raise UnsupportedAlgorithm(
+                "Only MGF1 is supported by this backend.",
+                _Reasons.UNSUPPORTED_MGF
+            )
+
+        if backend._lib.OpenSSL_version_num() < 0x10002001:
+            if not isinstance(padding._mgf._algorithm, hashes.SHA1):
+                raise UnsupportedAlgorithm(
+                    "OpenSSL < 1.0.2 only supports SHA1 inside MGF1 when "
+                    "using OAEP.",
+                    _Reasons.UNSUPPORTED_HASH
+                )
+            if not isinstance(padding._algorithm, hashes.SHA1):
+                raise UnsupportedAlgorithm(
+                    "OpenSSL < 1.0.2 only supports SHA1 when using OAEP.",
+                    _Reasons.UNSUPPORTED_HASH
+                )
+
         if not backend.rsa_padding_supported(padding):
             raise UnsupportedAlgorithm(
                 "This combination of padding and hash algorithm is not "
-                "supported by this backend.", _Reasons.UNSUPPORTED_PADDING
+                "supported by this backend.",
+                _Reasons.UNSUPPORTED_PADDING
             )
-        padding_enum = backend._lib.RSA_PKCS1_OAEP_PADDING
 
         if padding._label is not None and padding._label != b"":
             raise ValueError("This backend does not support OAEP labels.")
+
     else:
         raise UnsupportedAlgorithm(
             "{0} is not supported by this backend.".format(

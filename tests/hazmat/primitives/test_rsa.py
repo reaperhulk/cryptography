@@ -1369,7 +1369,7 @@ class TestRSADecryption(object):
 
     def test_unsupported_oaep_mgf(self, backend):
         private_key = RSA_KEY_512.private_key(backend)
-        with raises_unsupported_algorithm(_Reasons.UNSUPPORTED_PADDING):
+        with raises_unsupported_algorithm(_Reasons.UNSUPPORTED_MGF):
             private_key.decrypt(
                 b"0" * 64,
                 padding.OAEP(
@@ -1488,7 +1488,7 @@ class TestRSAEncryption(object):
         private_key = RSA_KEY_512.private_key(backend)
         public_key = private_key.public_key()
 
-        with raises_unsupported_algorithm(_Reasons.UNSUPPORTED_PADDING):
+        with raises_unsupported_algorithm(_Reasons.UNSUPPORTED_MGF):
             public_key.encrypt(
                 b"ciphertext",
                 padding.OAEP(
