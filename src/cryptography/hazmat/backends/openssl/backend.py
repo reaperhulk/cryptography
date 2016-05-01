@@ -594,16 +594,6 @@ class Backend(object):
 
         return _oaep_supported_padding_algorithms
 
-    def _oaep_mgf1_hash_supported(self, algorithm):
-        if self._lib.Cryptography_HAS_MGF1_MD:
-            return (
-                isinstance(algorithm,
-                    self._get_oaep_supported_padding_algorithms()) and
-                self.hash_supported(algorithm)
-            )
-        else:
-            return isinstance(algorithm, hashes.SHA1)
-
     def _oaep_hash_supported(self, algorithm):
         return (
             isinstance(algorithm,
@@ -624,7 +614,7 @@ class Backend(object):
             return self._pss_mgf1_hash_supported(padding._mgf._algorithm)
         elif isinstance(padding, OAEP) and isinstance(padding._mgf, MGF1):
             return (
-                self._oaep_mgf1_hash_supported(padding._mgf._algorithm) and
+                self._oaep_hash_supported(padding._mgf._algorithm) and
                 self._oaep_hash_supported(padding._algorithm)
             )
         else:
