@@ -578,7 +578,7 @@ class Backend(object):
         userdata = _PasswordUserdata(password=password)
         return _pem_password_cb, userdata
 
-    def _get_mgf1_supported_padding_hashes(backend):
+    def _get_oaep_supported_padding_algorithms(backend):
         # Verified test Vectors for OAEP only cover SHA-1 and SHA-2 currently
         # with OpenSSL >= 1.0.2.
         if backend._lib.OpenSSL_version_num() >= 0x10002001:
@@ -594,43 +594,38 @@ class Backend(object):
 
         return _oaep_supported_padding_algorithms
 
-    def _mgf1_hash_supported(self, algorithm):
+    def _oaep_mgf1_hash_supported(self, algorithm):
         if self._lib.Cryptography_HAS_MGF1_MD:
-            return (isinstance(algorithm,
-                self._get_mgf1_supported_padding_hashes()) and
-                self.hash_supported(algorithm))
+            return (
+                isinstance(algorithm,
+                    self._get_oaep_supported_padding_algorithms()) and
+                self.hash_supported(algorithm)
+            )
         else:
             return isinstance(algorithm, hashes.SHA1)
 
-    def _mgf1_hash_combination_supported(self, mgf_algo, algo):
-        if not self._mgf1_hash_supported(mgf_algo):
-            return False
+    def _oaep_hash_supported(self, algorithm):
+        return (
+            isinstance(algorithm,
+                self._get_oaep_supported_padding_algorithms()) and
+            self.hash_supported(algorithm)
+        )
 
-        # The same algorithm for both is always suppoted (SHA-1 or SHA-2)
-        if type(mgf_algo) is type(algo):
-            return True
-
-        # The algorithms aren't the same so check support for the other one
-        if not self._mgf1_hash_supported(algo):
-            return False
-
-        # The algorithms are different; so neither can be SHA-1 as we
-        # don't support SHA-2 combinations with SHA-1.
-        if isinstance(mgf_algo, hashes.SHA1) or isinstance(algo, hashes.SHA1):
-            return False
+    def _pss_mgf1_hash_supported(self, algorithm):
+        if self._lib.Cryptography_HAS_MGF1_MD:
+            return self.hash_supported(algorithm)
         else:
-            return True
+            return isinstance(algorithm, hashes.SHA1)
 
     def rsa_padding_supported(self, padding):
         if isinstance(padding, PKCS1v15):
             return True
         elif isinstance(padding, PSS) and isinstance(padding._mgf, MGF1):
-            return self._mgf1_hash_supported(padding._mgf._algorithm)
+            return self._pss_mgf1_hash_supported(padding._mgf._algorithm)
         elif isinstance(padding, OAEP) and isinstance(padding._mgf, MGF1):
             return (
-                self._mgf1_hash_combination_supported(
-                    padding._mgf._algorithm,
-                    padding._algorithm)
+                self._oaep_mgf1_hash_supported(padding._mgf._algorithm) and
+                self._oaep_hash_supported(padding._algorithm)
             )
         else:
             return False
