@@ -1419,6 +1419,38 @@ class TestRSAEncryption(object):
 
     @pytest.mark.supported(
         only_if=lambda backend: backend.rsa_padding_supported(
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA512(),
+                label=None
+            )
+        ),
+        skip_message="Does not support OAEP using SHA256 MGF1 and SHA512 hash."
+    )
+    @pytest.mark.parametrize(
+        "hash_a, hash_b",
+        itertools.product([
+            hashes.SHA1(), hashes.SHA224(), hashes.SHA256(),
+            hashes.SHA384(), hashes.SHA512()
+        ], repeat=2)
+    )
+    def test_rsa_encrypt_oaep_sha2(self, hash_a, hash_b, backend):
+        pad = padding.OAEP(
+            mgf=padding.MGF1(algorithm=hash_a),
+            algorithm=hash_b,
+            label=None
+        )
+        private_key = RSA_KEY_2048.private_key(backend)
+        pt = b"encrypt me using sha2 hashes!"
+        public_key = private_key.public_key()
+        ct = public_key.encrypt(pt, pad)
+        assert ct != pt
+        assert len(ct) == math.ceil(public_key.key_size / 8.0)
+        recovered_pt = private_key.decrypt(ct, pad)
+        assert recovered_pt == pt
+
+    @pytest.mark.supported(
+        only_if=lambda backend: backend.rsa_padding_supported(
             padding.PKCS1v15()
         ),
         skip_message="Does not support PKCS1v1.5."
