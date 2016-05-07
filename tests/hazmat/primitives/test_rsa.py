@@ -1435,6 +1435,9 @@ class TestRSAEncryption(object):
         ], repeat=2)
     )
     def test_rsa_encrypt_oaep_sha2(self, hash_a, hash_b, backend):
+        if isinstance(hash_a, hashes.SHA1) and isinstance(hash_b, hashes.SHA1):
+            return  # Skip SHA-1 with SHA-1, this is checked by other tests
+
         pad = padding.OAEP(
             mgf=padding.MGF1(algorithm=hash_a),
             algorithm=hash_b,
