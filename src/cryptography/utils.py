@@ -10,8 +10,6 @@ import inspect
 import sys
 import warnings
 
-from packaging.version import parse
-
 
 # Several APIs were deprecated with no specific end-of-life date because of the
 # ubiquity of their use. They should not be removed until we agree on when that
@@ -51,13 +49,19 @@ else:
         return int(bytes(data).encode('hex'), 16)
 
 
-def int_to_bytes(integer, length=None):
-    hex_string = '%x' % integer
-    if length is None:
-        n = len(hex_string)
-    else:
-        n = length * 2
-    return binascii.unhexlify(hex_string.zfill(n + (n & 1)))
+if hasattr(int, "to_bytes"):
+    def int_to_bytes(integer, length=None):
+        return integer.to_bytes(
+            length or (integer.bit_length() + 7) // 8 or 1, 'big'
+        )
+else:
+    def int_to_bytes(integer, length=None):
+        hex_string = '%x' % integer
+        if length is None:
+            n = len(hex_string)
+        else:
+            n = length * 2
+        return binascii.unhexlify(hex_string.zfill(n + (n & 1)))
 
 
 class InterfaceNotImplemented(Exception):
@@ -98,11 +102,6 @@ else:
         return len(bin(x)) - (2 + (x <= 0))
 
 
-def _version_check(version, required_version):
-    # This is used to check if we support update_into on CipherContext.
-    return parse(version) >= parse(required_version)
-
-
 class _DeprecatedValue(object):
     def __init__(self, value, message, warning_class):
         self.value = value
@@ -138,5 +137,5 @@ class _ModuleWithDeprecations(object):
 def deprecated(value, module_name, message, warning_class):
     module = sys.modules[module_name]
     if not isinstance(module, _ModuleWithDeprecations):
-        sys.modules[module_name] = module = _ModuleWithDeprecations(module)
+        sys.modules[module_name] = _ModuleWithDeprecations(module)
     return _DeprecatedValue(value, message, warning_class)
