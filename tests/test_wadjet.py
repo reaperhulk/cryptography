@@ -54,7 +54,9 @@ class TestWadjet(object):
         assert computed_pt == pt
         ctx = wadjet.decryptor()
         computed_pt2 = b""
-        # TODO: figure out how to make this part of the test vectors
+        # TODO: figure out how to make this part of the test vectors. we
+        # want lots of incremental updates to test the implementation's
+        # buffering code.
         for start in range(0, len(frames), 10000):
             computed_pt2 += ctx.update(frames[start:start+10000])
 

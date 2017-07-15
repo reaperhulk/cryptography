@@ -59,10 +59,11 @@ vectors.append(generate_vector(desc, key, payload))
 desc = "reordered frames"
 key = "zJ71uJB3pXa4uSKs7qSz5faudEo1j-BatZ7H2g1nkLg="
 original_stream = base64.b64decode(vectors[-1]["stream"])
-frame_length = 1024 * 1024 + 18
-frame0 = original_stream[:frame_length]
-frame1 = original_stream[frame_length:frame_length * 2]
-frame2 = original_stream[frame_length * 2:]
+frame_size = Wadjet._FRAME_SIZE
+header_size = Wadjet._STREAM_HEADER_SIZE
+frame0 = original_stream[header_size:header_size+frame_size]
+frame1 = original_stream[header_size+frame_size:header_size+(frame_size*2)]
+frame2 = original_stream[header_size+frame_size*2:]
 stream = frame1 + frame0 + frame2
 vectors.append({
     "desc": desc,
@@ -74,11 +75,37 @@ vectors.append({
 
 desc = "truncation attack, remove last frame"
 key = "zJ71uJB3pXa4uSKs7qSz5faudEo1j-BatZ7H2g1nkLg="
+payload = base64.b64decode(vectors[-1]["payload"])[:(frame_size * 2) + 17]
 stream = frame0 + frame1
 vectors.append({
     "desc": desc,
     "key": key,
-    "payload": vectors[-1]["payload"][:frame_length * 2],
+    "payload": payload,
+    "stream": base64.b64encode(stream).decode("ascii"),
+    "fail": True
+})
+
+desc = "interleave attack"
+key = "zJ71uJB3pXa4uSKs7qSz5faudEo1j-BatZ7H2g1nkLg="
+payload0 = b"0" * 1024 * 1024 + b"1" * 1024 * 1024
+payload1 = b"1" * 1024 * 1024 + b"0" * 1024 * 1024
+vector0 = generate_vector(desc, key, payload0)
+vector1 = generate_vector(desc, key, payload1)
+# The interleave attack we'll try is grabbing the stream header and
+# frame0 of vector0 and frame1 of vector1. This will result in a payload of
+# all 0s for two full frames, but should fail because each frame stream has
+# a different nonce.
+payload = b"0" * 1024 * 1024 * 2
+stream = (
+    base64.b64decode(vector0["stream"])[:frame_size+header_size] +
+    base64.b64decode(
+        vector1["stream"])[frame_size+header_size:frame_size*2+header_size]
+)
+assert len(stream) == 2 * frame_size + header_size
+vectors.append({
+    "desc": desc,
+    "key": key,
+    "payload": base64.b64encode(payload).decode("ascii"),
     "stream": base64.b64encode(stream).decode("ascii"),
     "fail": True
 })
