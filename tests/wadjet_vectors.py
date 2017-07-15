@@ -10,6 +10,9 @@ import base64
 from cryptography.wadjet import Wadjet
 
 
+frame_size = Wadjet._FRAME_SIZE
+header_size = Wadjet._STREAM_HEADER_SIZE
+
 vectors = []
 
 
@@ -38,29 +41,29 @@ vectors.append(generate_vector(desc, key, payload))
 
 desc = "payload exactly one frame"
 key = "DDV-kejnwyL4BJR_-Y1J-2xHvD32M2A5mnG8MFFU7xw="
-payload = b"0" * 1024 * 1024
+payload = b"0" * Wadjet._PAYLOAD_SIZE
 vectors.append(generate_vector(desc, key, payload))
 
 desc = "payload greater than one frame but less than a full two"
 key = "4cFefIbulrA_-aUCkmZgNskcPhWQDj_XlIhlQ50ee0c="
-payload = b"0" * 1024 * 1027
+payload = b"0" * Wadjet._PAYLOAD_SIZE + b"0" * 500
 vectors.append(generate_vector(desc, key, payload))
 
 desc = "payload exactly two frames"
 key = "6Vbm8i8-576OjeGtjnSe-tF_InGIB7shGiIxSyfOz4M="
-payload = b"0" * 1024 * 1024 + b"1" * 1024 * 1024
+payload = b"0" * Wadjet._PAYLOAD_SIZE + b"1" * Wadjet._PAYLOAD_SIZE
 vectors.append(generate_vector(desc, key, payload))
 
 desc = "payload > 2 frames"
 key = "zJ71uJB3pXa4uSKs7qSz5faudEo1j-BatZ7H2g1nkLg="
-payload = b"0" * 1024 * 1024 + b"1" * 1024 * 1024 + b"2" * 100
+payload = (
+    b"0" * Wadjet._PAYLOAD_SIZE + b"1" * Wadjet._PAYLOAD_SIZE + b"2" * 100
+)
 vectors.append(generate_vector(desc, key, payload))
 
 desc = "reordered frames"
 key = "zJ71uJB3pXa4uSKs7qSz5faudEo1j-BatZ7H2g1nkLg="
 original_stream = base64.b64decode(vectors[-1]["stream"])
-frame_size = Wadjet._FRAME_SIZE
-header_size = Wadjet._STREAM_HEADER_SIZE
 frame0 = original_stream[header_size:header_size+frame_size]
 frame1 = original_stream[header_size+frame_size:header_size+(frame_size*2)]
 frame2 = original_stream[header_size+frame_size*2:]
@@ -75,7 +78,8 @@ vectors.append({
 
 desc = "truncation attack, remove last frame"
 key = "zJ71uJB3pXa4uSKs7qSz5faudEo1j-BatZ7H2g1nkLg="
-payload = base64.b64decode(vectors[-1]["payload"])[:(frame_size * 2) + 17]
+payload = base64.b64decode(
+    vectors[-1]["payload"])[:(frame_size * 2) + header_size]
 stream = frame0 + frame1
 vectors.append({
     "desc": desc,
@@ -87,15 +91,15 @@ vectors.append({
 
 desc = "interleave attack"
 key = "zJ71uJB3pXa4uSKs7qSz5faudEo1j-BatZ7H2g1nkLg="
-payload0 = b"0" * 1024 * 1024 + b"1" * 1024 * 1024
-payload1 = b"1" * 1024 * 1024 + b"0" * 1024 * 1024
+payload0 = b"0" * Wadjet._PAYLOAD_SIZE + b"1" * Wadjet._PAYLOAD_SIZE
+payload1 = b"1" * Wadjet._PAYLOAD_SIZE + b"0" * Wadjet._PAYLOAD_SIZE
 vector0 = generate_vector(desc, key, payload0)
 vector1 = generate_vector(desc, key, payload1)
 # The interleave attack we'll try is grabbing the stream header and
 # frame0 of vector0 and frame1 of vector1. This will result in a payload of
 # all 0s for two full frames, but should fail because each frame stream has
 # a different nonce.
-payload = b"0" * 1024 * 1024 * 2
+payload = b"0" * Wadjet._PAYLOAD_SIZE * 2
 stream = (
     base64.b64decode(vector0["stream"])[:frame_size+header_size] +
     base64.b64decode(
