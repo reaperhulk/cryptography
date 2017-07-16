@@ -71,7 +71,10 @@ class TestWadjet(object):
         frames = ctx.update(b"0" * 1024 * 1024)
         frames += ctx.update(b"hello world")
         frames += ctx.finalize()
-        first_frame = frames[:Wadjet._FRAME_SIZE]
+        truncation_length = (
+            Wadjet._DEFAULT_FRAME_LENGTH + Wadjet._STREAM_HEADER_LENGTH
+        )
+        first_frame = frames[:truncation_length]
         with pytest.raises(InvalidFrame):
             ctx = wadjet.decryptor()
             ctx.update(first_frame)
@@ -80,7 +83,7 @@ class TestWadjet(object):
         ctx = wadjet.decryptor()
         with pytest.raises(InvalidFrame):
             # Set FinalFrame to 1
-            tampered_frame = b"\x01\x01" + first_frame[2:]
+            tampered_frame = b"\x01" + first_frame[1:]
             ctx.update(tampered_frame)
             ctx.finalize()
 
