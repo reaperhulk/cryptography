@@ -28,6 +28,16 @@ class TestWadjet(object):
         with pytest.raises(ValueError):
             Wadjet("nonsense")
 
+    def test_frame_length_invalid(self, backend):
+        with pytest.raises(ValueError):
+            Wadjet(Wadjet.generate_key()).encryptor(10)
+
+        with pytest.raises(ValueError):
+            Wadjet(Wadjet.generate_key()).encryptor(2 ** 25)
+
+        with pytest.raises(TypeError):
+            Wadjet(Wadjet.generate_key()).encryptor("notanint")
+
     @pytest.mark.parametrize("vector", vectors)
     def test_vectors(self, vector, backend):
         wadjet = Wadjet(vector["key"])

@@ -250,6 +250,9 @@ class Wadjet(object):
         self._key = key
 
     def _validate_frame_length(self, length):
+        if not isinstance(length, six.integer_types):
+            raise TypeError("frame_length must be an integer")
+
         if length > self._MAX_FRAME_LENGTH or length < self._FRAME_OVERHEAD:
             raise ValueError(
                 "frame_length must be between {0} and {1}".format(
