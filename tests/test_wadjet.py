@@ -52,7 +52,7 @@ class TestWadjet(object):
             ) + ctx.finalize()
             assert pt == base64.b64decode(vector["payload"])
 
-    def test_larger_than_one_frame(self):
+    def test_incremental_updates_larger_than_one_frame(self):
         key = Wadjet.generate_key()
         wadjet = Wadjet(key)
         ctx = wadjet.encryptor()
@@ -72,30 +72,6 @@ class TestWadjet(object):
 
         computed_pt2 += ctx.finalize()
         assert computed_pt2 == pt
-
-    def test_tamper_final_frame_byte(self):
-        # TODO: test vector-ify
-        key = Wadjet.generate_key()
-        wadjet = Wadjet(key)
-        ctx = wadjet.encryptor()
-        frames = ctx.update(b"0" * 1024 * 1024)
-        frames += ctx.update(b"hello world")
-        frames += ctx.finalize()
-        truncation_length = (
-            Wadjet._DEFAULT_FRAME_LENGTH + Wadjet._STREAM_HEADER_LENGTH
-        )
-        first_frame = frames[:truncation_length]
-        with pytest.raises(InvalidFrame):
-            ctx = wadjet.decryptor()
-            ctx.update(first_frame)
-            ctx.finalize()
-
-        ctx = wadjet.decryptor()
-        with pytest.raises(InvalidFrame):
-            # Set FinalFrame to 1
-            tampered_frame = b"\x01" + first_frame[1:]
-            ctx.update(tampered_frame)
-            ctx.finalize()
 
     def test_use_after_finalize(self):
         key = Wadjet.generate_key()

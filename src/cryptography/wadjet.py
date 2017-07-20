@@ -161,11 +161,14 @@ class _WadjetDecryptionContext(object):
         self._frame_length = utils.int_from_bytes(
             self._buffer[1:4], byteorder='big'
         )
+        self._frame_length_bytes = self._buffer[1:4]
+        if self._frame_length < Wadjet._MIN_FRAME_LENGTH:
+            # TODO: always InvalidFrame? Do we leak info by calling this an
+            # invalid stream or some other less generic error?
+            raise InvalidFrame
+
         self._nonce = self._buffer[4:20]
         self._payload_length = self._frame_length - Wadjet._FRAME_OVERHEAD
-        self._frame_length_bytes = utils.int_to_bytes(
-            self._frame_length, 3
-        )
         # We've processed the stream header, now drop it from the buffer
         self._buffer = b""
 
@@ -196,7 +199,7 @@ class _WadjetDecryptionContext(object):
             self._buffer += data[:remaining]
             data = data[remaining:]
             if data:
-                frames.append(self._decrypt_frame(final=False))
+                frames.append(self._decrypt_frame())
 
         return b"".join(frames)
 
@@ -210,11 +213,16 @@ class _WadjetDecryptionContext(object):
         if len(self._buffer) < Wadjet._FRAME_OVERHEAD or self._nonce is None:
             raise InvalidFrame
 
-        return self._decrypt_frame(final=True)
+        # For the last frame FinalFrame must be True
+        # TODO: do we want this to be the same exception?
+        if self._buffer[:1] != b"\x01":
+            raise InvalidFrame
 
-    def _decrypt_frame(self, final):
+        return self._decrypt_frame()
+
+    def _decrypt_frame(self):
         tag = self._buffer[-16:]
-        final_byte = b"\x01" if final is True else b"\x00"
+        final_byte = self._buffer[:1]
         info = _compute_info(
             self._frame_length, self._nonce, final_byte, self._frame_number
         )
@@ -234,6 +242,7 @@ class _WadjetDecryptionContext(object):
 class Wadjet(object):
     _MAX_FRAME_LENGTH = 16777216
     _FRAME_OVERHEAD = 17
+    _MIN_FRAME_LENGTH = _FRAME_OVERHEAD + 1
     _STREAM_HEADER_LENGTH = 1 + 3 + 16 + 16
     _ENCRYPT = 1
     _DECRYPT = 0
@@ -253,10 +262,10 @@ class Wadjet(object):
         if not isinstance(length, six.integer_types):
             raise TypeError("frame_length must be an integer")
 
-        if length > self._MAX_FRAME_LENGTH or length < self._FRAME_OVERHEAD:
+        if length > self._MAX_FRAME_LENGTH or length < self._MIN_FRAME_LENGTH:
             raise ValueError(
                 "frame_length must be between {0} and {1}".format(
-                    self._FRAME_OVERHEAD,
+                    self._MIN_FRAME_LENGTH,
                     self._MAX_FRAME_LENGTH
                 )
             )
