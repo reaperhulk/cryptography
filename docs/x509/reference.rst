@@ -3135,6 +3135,13 @@ instances. The following common OIDs are available as constants.
 
         Corresponds to the dotted string ``"1.3.6.1.5.5.7.48.1.2"``.
 
+    .. versionadded:: 2.9
+
+    .. attribute:: SCT_LIST
+
+        Corresponds to the dotted string ``"1.3.6.1.4.1.11129.2.4.5"``. This
+        object identifier is only valid inside single response extensions.
+
 Helper Functions
 ~~~~~~~~~~~~~~~~
 .. currentmodule:: cryptography.x509

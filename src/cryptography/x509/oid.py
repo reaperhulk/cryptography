@@ -41,6 +41,7 @@ class ExtensionOID(object):
 
 class OCSPExtensionOID(object):
     NONCE = ObjectIdentifier("1.3.6.1.5.5.7.48.1.2")
+    SCT_LIST = ObjectIdentifier("1.3.6.1.4.1.11129.2.4.5")
 
 
 class CRLEntryExtensionOID(object):
@@ -229,4 +230,5 @@ _OID_NAMES = {
     CertificatePoliciesOID.CPS_QUALIFIER: "id-qt-cps",
     CertificatePoliciesOID.CPS_USER_NOTICE: "id-qt-unotice",
     OCSPExtensionOID.NONCE: "OCSPNonce",
+    OCSPExtensionOID.SCT_LIST: "ocspSCTList",
 }

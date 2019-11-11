@@ -16,6 +16,9 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec, ed25519, ed448
 from cryptography.hazmat.primitives.asymmetric.padding import PKCS1v15
 from cryptography.x509 import ocsp
+from cryptography.x509.certificate_transparency import (
+    SignedCertificateTimestamp
+)
 
 from .test_x509 import _load_cert
 from ..hazmat.primitives.fixtures_ec import EC_KEY_SECP256R1
@@ -755,6 +758,23 @@ class TestOCSPResponse(object):
             resp.public_bytes("invalid")
         with pytest.raises(ValueError):
             resp.public_bytes(serialization.Encoding.PEM)
+
+    @pytest.mark.supported(
+        only_if=lambda backend: (
+            backend._lib.CRYPTOGRAPHY_OPENSSL_110F_OR_GREATER),
+        skip_message="Requires OpenSSL 1.1.0f+",
+    )
+    def test_single_extensions_sct(self, backend):
+        resp = _load_data(
+            os.path.join("x509", "ocsp", "resp-single-extension-sct.der"),
+            ocsp.load_der_ocsp_response,
+        )
+        assert len(resp.single_extensions) == 1
+        ext = resp.single_extensions[0]
+        assert ext.oid == x509.ObjectIdentifier("1.3.6.1.4.1.11129.2.4.5")
+        assert isinstance(
+            ext.value, x509.PrecertificateSignedCertificateTimestamps
+        )
 
     def test_single_extensions(self, backend):
         resp = _load_data(
