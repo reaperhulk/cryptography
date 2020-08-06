@@ -1469,11 +1469,19 @@ class Backend(object):
                 "incorrect format or it may be encrypted with an unsupported "
                 "algorithm."
             )
-        elif errors[0]._lib_reason_match(
-            self._lib.ERR_LIB_EVP, self._lib.EVP_R_BAD_DECRYPT
-        ) or errors[0]._lib_reason_match(
-            self._lib.ERR_LIB_PKCS12,
-            self._lib.PKCS12_R_PKCS12_CIPHERFINAL_ERROR,
+
+        elif (
+            errors[0]._lib_reason_match(
+                self._lib.ERR_LIB_EVP, self._lib.EVP_R_BAD_DECRYPT
+            )
+            or errors[0]._lib_reason_match(
+                self._lib.ERR_LIB_PKCS12,
+                self._lib.PKCS12_R_PKCS12_CIPHERFINAL_ERROR,
+            )
+            or errors[0]._lib_reason_match(
+                self._lib.ERR_LIB_PROV,
+                100,  # PROV_R_BAD_DECRYPT not in public headers
+            )
         ):
             raise ValueError("Bad decrypt. Incorrect password?")
 
@@ -2562,9 +2570,11 @@ class Backend(object):
             sk_x509 = self._lib.sk_X509_new_null()
             sk_x509 = self._ffi.gc(sk_x509, self._lib.sk_X509_free)
 
-            # reverse the list when building the stack so that they're encoded
-            # in the order they were originally provided. it is a mystery
-            for ca in reversed(cas):
+            # In OpenSSL < 3.0.0 these are encoded in the reverse order.
+            if not self._lib.CRYPTOGRAPHY_OPENSSL_300_OR_GREATER:
+                cas = reversed(cas)
+
+            for ca in cas:
                 res = self._lib.sk_X509_push(sk_x509, ca._x509)
                 backend.openssl_assert(res >= 1)
 

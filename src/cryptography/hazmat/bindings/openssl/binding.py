@@ -139,6 +139,19 @@ class Binding(object):
                 # adds all ciphers/digests for EVP
                 cls.lib.OpenSSL_add_all_algorithms()
                 cls._register_osrandom_engine()
+                # As of OpenSSL 3.0.0 we must register a legacy cipher provider
+                # to get RC2 (needed for junk asymmetric private key crypto),
+                # RC4, Blowfish, IDEA, SEED, etc. These things are ugly legacy,
+                # but we aren't going to get rid of them any time soon.
+                if cls.lib.CRYPTOGRAPHY_OPENSSL_300_OR_GREATER:
+                    legacy = cls.lib.OSSL_PROVIDER_load(
+                        cls.ffi.NULL, b"legacy"
+                    )
+                    _openssl_assert(cls.lib, legacy != cls.ffi.NULL)
+                    default = cls.lib.OSSL_PROVIDER_load(
+                        cls.ffi.NULL, b"default"
+                    )
+                    _openssl_assert(cls.lib, default != cls.ffi.NULL)
 
     @classmethod
     def init_static_locks(cls):
