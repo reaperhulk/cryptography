@@ -2690,6 +2690,39 @@ class Backend(object):
 
         return certs
 
+    def detached_smime_sign(
+        self, data, certificate, key, hash_algorithm, options
+    ):
+        # TODO : check that all options are from the allowed enum
+
+        bio = self._bytes_to_bio(data)
+        # This just inits a structure for us.
+        p7 = self._lib.PKCS7_sign(
+            self._ffi.NULL,
+            self._ffi.NULL,
+            self._ffi.NULL,
+            self._ffi.NULL,
+            self._lib.PKCS7_DETACHED | self._lib.PKCS7_PARTIAL,
+        )
+        self.openssl_assert(p7 != self._ffi.NULL)
+        md = self._evp_md_from_algorithm(hash_algorithm)
+        self.openssl_assert(md != self._ffi.NULL)
+        p7signerinfo = self._lib.PKCS7_sign_add_signer(
+            p7, certificate._x509, key._evp_pkey, md, self._lib.PKCS7_PARTIAL
+        )
+        self.openssl_assert(p7signerinfo != self._ffi.NULL)
+
+        flags = self._lib.PKCS7_DETACHED
+        for option in options:
+            flags |= option.value
+
+        res = self._lib.PKCS7_final(p7, bio.bio, flags)
+        self.openssl_assert(res == 1)
+        bio_out = self._create_mem_bio_gc()
+        res = self._lib.SMIME_write_PKCS7(bio_out, p7, bio.bio, flags)
+        self.openssl_assert(res == 1)
+        return self._read_mem_bio(bio_out)
+
 
 class GetCipherByName(object):
     def __init__(self, fmt):
