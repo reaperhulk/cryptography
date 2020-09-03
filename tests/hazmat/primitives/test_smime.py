@@ -55,4 +55,4 @@ def test_smime_binary():
     # are two Content-Types instead of three. This is a terrible test and we
     # should write a better one.
     assert len(re.findall(b"Content-Type", sig)) == 2
-    assert sig.find(b"sha1") == 0
+    assert sig.find(b"sha1") == -1

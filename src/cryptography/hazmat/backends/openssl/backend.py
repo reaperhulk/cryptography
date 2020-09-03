@@ -2708,7 +2708,7 @@ class Backend(object):
         md = self._evp_md_from_algorithm(hash_algorithm)
         self.openssl_assert(md != self._ffi.NULL)
         p7signerinfo = self._lib.PKCS7_sign_add_signer(
-            p7, certificate._x509, key._evp_pkey, md, self._lib.PKCS7_PARTIAL
+            p7, certificate._x509, key._evp_pkey, self._ffi.NULL, self._lib.PKCS7_PARTIAL
         )
         self.openssl_assert(p7signerinfo != self._ffi.NULL)
 
