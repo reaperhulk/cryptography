@@ -8,6 +8,7 @@ use crate::error::{CryptographyError, CryptographyResult};
 use crate::padding::PKCS7PaddingContext;
 use crate::x509::certificate::Certificate;
 use crate::{types, x509};
+use crate::oid::ObjectIdentifier;
 use cryptography_x509::common::Utf8StoredBMPString;
 use pyo3::types::{PyAnyMethods, PyBytesMethods, PyListMethods, PyModuleMethods};
 use pyo3::IntoPy;
@@ -20,19 +21,23 @@ struct PKCS12Certificate {
     certificate: pyo3::Py<Certificate>,
     #[pyo3(get)]
     friendly_name: Option<pyo3::Py<pyo3::types::PyBytes>>,
+    #[pyo3(get)]
+    java_trusted_key_usage: Option<pyo3::Py<ObjectIdentifier>>,
 }
 
 #[pyo3::pymethods]
 impl PKCS12Certificate {
     #[new]
-    #[pyo3(signature = (cert, friendly_name=None))]
+    #[pyo3(signature = (cert, friendly_name=None, java_trusted_key_usage=None))]
     fn new(
         cert: pyo3::Py<Certificate>,
         friendly_name: Option<pyo3::Py<pyo3::types::PyBytes>>,
+        java_trusted_key_usage: Option<pyo3::Py<ObjectIdentifier>>,
     ) -> PKCS12Certificate {
         PKCS12Certificate {
             certificate: cert,
             friendly_name,
+            java_trusted_key_usage,
         }
     }
 
@@ -340,8 +345,9 @@ fn pkcs12_kdf(
     Ok(result)
 }
 
-fn friendly_name_attributes(
+fn encode_attributes(
     friendly_name: Option<&[u8]>,
+    java_trusted_key_usage: Option<asn1::ObjectIdentifier>,
 ) -> CryptographyResult<
     Option<
         asn1::SetOfWriter<
@@ -351,19 +357,31 @@ fn friendly_name_attributes(
         >,
     >,
 > {
+    let mut attrs = vec![];
+
     if let Some(name) = friendly_name {
         let name_str = std::str::from_utf8(name).map_err(|_| {
             pyo3::exceptions::PyValueError::new_err("friendly_name must be valid UTF-8")
         })?;
 
-        Ok(Some(asn1::SetOfWriter::new(vec![
-            cryptography_x509::pkcs12::Attribute {
-                _attr_id: asn1::DefinedByMarker::marker(),
-                attr_values: cryptography_x509::pkcs12::AttributeSet::FriendlyName(
-                    asn1::SetOfWriter::new([Utf8StoredBMPString::new(name_str)]),
-                ),
-            },
-        ])))
+        attrs.push(cryptography_x509::pkcs12::Attribute {
+            _attr_id: asn1::DefinedByMarker::marker(),
+            attr_values: cryptography_x509::pkcs12::AttributeSet::FriendlyName(
+                asn1::SetOfWriter::new([Utf8StoredBMPString::new(name_str)]),
+            ),
+        });
+    }
+    if let Some(oid) = java_trusted_key_usage {
+        attrs.push(cryptography_x509::pkcs12::Attribute {
+            _attr_id: asn1::DefinedByMarker::marker(),
+            attr_values: cryptography_x509::pkcs12::AttributeSet::JavaTrustedKeyUsage(
+                asn1::SetOfWriter::new([oid]),
+            ),
+        });
+    }
+
+    if attrs.len() > 0 {
+        Ok(Some(asn1::SetOfWriter::new(attrs)))
     } else {
         Ok(None)
     }
@@ -372,6 +390,7 @@ fn friendly_name_attributes(
 fn cert_to_bag<'a>(
     cert: &'a Certificate,
     friendly_name: Option<&'a [u8]>,
+    java_trusted_key_usage: Option<asn1::ObjectIdentifier>,
 ) -> CryptographyResult<cryptography_x509::pkcs12::SafeBag<'a>> {
     Ok(cryptography_x509::pkcs12::SafeBag {
         _bag_id: asn1::DefinedByMarker::marker(),
@@ -383,7 +402,7 @@ fn cert_to_bag<'a>(
                 )),
             },
         )),
-        attributes: friendly_name_attributes(friendly_name)?,
+        attributes: encode_attributes(friendly_name, java_trusted_key_usage)?,
     })
 }
 
@@ -519,7 +538,7 @@ fn serialize_key_and_certificates<'p>(
                 }
             }
 
-            cert_bags.push(cert_to_bag(cert, name)?);
+            cert_bags.push(cert_to_bag(cert, name, None)?);
         }
 
         if let Some(cas) = cas {
@@ -529,10 +548,11 @@ fn serialize_key_and_certificates<'p>(
 
             for cert in &ca_certs {
                 let bag = match cert {
-                    CertificateOrPKCS12Certificate::Certificate(c) => cert_to_bag(c.get(), None)?,
+                    CertificateOrPKCS12Certificate::Certificate(c) => cert_to_bag(c.get(), None, None)?,
                     CertificateOrPKCS12Certificate::PKCS12Certificate(c) => cert_to_bag(
                         c.get().certificate.get(),
                         c.get().friendly_name.as_ref().map(|v| v.as_bytes(py)),
+                        c.get().java_trusted_key_usage.map(|v| v.get().oid),
                     )?,
                 };
                 cert_bags.push(bag);
@@ -629,7 +649,7 @@ fn serialize_key_and_certificates<'p>(
                         },
                     ),
                 ),
-                attributes: friendly_name_attributes(name)?,
+                attributes: encode_attributes(name, None)?,
             }
         } else {
             let pkcs8_tlv = asn1::parse_single(&pkcs8_bytes)?;
@@ -639,7 +659,7 @@ fn serialize_key_and_certificates<'p>(
                 bag_value: asn1::Explicit::new(cryptography_x509::pkcs12::BagValue::KeyBag(
                     pkcs8_tlv,
                 )),
-                attributes: friendly_name_attributes(name)?,
+                attributes: encode_attributes(name, None)?,
             }
         };
 
@@ -800,7 +820,8 @@ fn load_pkcs12<'p>(
             .alias()
             .map(|a| pyo3::types::PyBytes::new_bound(py, a).unbind());
 
-        PKCS12Certificate::new(pyo3::Py::new(py, cert)?, alias).into_py(py)
+        // TODO: Implement java_trusted_key_usage attribute parsing
+        PKCS12Certificate::new(pyo3::Py::new(py, cert)?, alias, None).into_py(py)
     } else {
         py.None()
     };
@@ -823,7 +844,8 @@ fn load_pkcs12<'p>(
                 .alias()
                 .map(|a| pyo3::types::PyBytes::new_bound(py, a).unbind());
 
-            let p12_cert = PKCS12Certificate::new(pyo3::Py::new(py, cert)?, alias).into_py(py);
+            // TODO: Implement java_trusted_key_usage attribute parsing
+            let p12_cert = PKCS12Certificate::new(pyo3::Py::new(py, cert)?, alias, None).into_py(py);
             additional_certs.append(p12_cert)?;
         }
     }

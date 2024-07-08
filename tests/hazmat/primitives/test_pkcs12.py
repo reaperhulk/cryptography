@@ -741,6 +741,8 @@ def test_pkcs12_ordering():
     p12 = serialize_key_and_certificates(
         b"p12", a_key, a_cert, [b_cert, c_cert], serialization.NoEncryption()
     )
+    with open("/Users/pkehrer/Desktop/what", "wb") as f:
+        f.write(p12)
 
     # Parse them out. The API should report them in the same order.
     (_, cert, certs) = load_key_and_certificates(p12, None)

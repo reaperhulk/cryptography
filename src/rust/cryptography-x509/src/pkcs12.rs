@@ -11,6 +11,8 @@ pub const SHROUDED_KEY_BAG_OID: asn1::ObjectIdentifier =
     asn1::oid!(1, 2, 840, 113549, 1, 12, 10, 1, 2);
 pub const X509_CERTIFICATE_OID: asn1::ObjectIdentifier = asn1::oid!(1, 2, 840, 113549, 1, 9, 22, 1);
 pub const FRIENDLY_NAME_OID: asn1::ObjectIdentifier = asn1::oid!(1, 2, 840, 113549, 1, 9, 20);
+pub const JAVA_TRUSTED_KEY_USAGE_OID: asn1::ObjectIdentifier = asn1::oid!(2, 16, 840, 1, 113894, 746875, 1, 1);
+pub const ANY_EXTENDED_KEY_USAGE : asn1::ObjectIdentifier = asn1::oid!(2, 5, 29, 37, 0);
 
 #[derive(asn1::Asn1Write)]
 pub struct Pfx<'a> {
@@ -46,6 +48,8 @@ pub struct Attribute<'a> {
 pub enum AttributeSet<'a> {
     #[defined_by(FRIENDLY_NAME_OID)]
     FriendlyName(asn1::SetOfWriter<'a, Utf8StoredBMPString<'a>, [Utf8StoredBMPString<'a>; 1]>),
+    #[defined_by(JAVA_TRUSTED_KEY_USAGE_OID)]
+    JavaTrustedKeyUsage(asn1::SetOfWriter<'a, asn1::ObjectIdentifier, [asn1::ObjectIdentifier; 1]>),
 }
 
 #[derive(asn1::Asn1DefinedByWrite)]
