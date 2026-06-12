@@ -31,7 +31,7 @@ openssl = "0.10.77"
 openssl-sys = "0.9.111"
 pem = { version = "3", default-features = false }
 pyo3 = { version = "0.28", features = ["abi3"] }
-pyo3-build-config = { version = "0.28" }
+pyo3-build-config = { version = "0.29" }
 self_cell = "1"
 
 [profile.release]
