@@ -158,7 +158,7 @@ pytest-benchmark==5.2.3
     # via cryptography (pyproject.toml:dev)
 pytest-cov==7.1.0
     # via cryptography (pyproject.toml:dev)
-pytest-randomly==4.0.1
+pytest-randomly==4.1.0
     # via cryptography (pyproject.toml:dev)
 pytest-xdist==3.8.0
     # via cryptography (pyproject.toml:dev)
