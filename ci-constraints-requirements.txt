@@ -18,7 +18,7 @@ certifi==2026.4.22
     # via
     #   cryptography (pyproject.toml:dev)
     #   requests
-charset-normalizer==3.4.7
+charset-normalizer==3.4.8
     # via requests
 check-sdist==1.4.0
     # via cryptography (pyproject.toml:dev)
