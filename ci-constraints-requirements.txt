@@ -10,7 +10,7 @@ attrs==26.1.0
     # via nox
 babel==2.18.0
     # via sphinx
-build==1.4.4
+build==1.5.1
     # via
     #   cryptography (pyproject.toml:dev)
     #   check-sdist
